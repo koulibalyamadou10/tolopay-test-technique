@@ -1,0 +1,120 @@
+TEST TECHNIQUE TOLOPAY
+
+Partie 1 — Sans IA
+
+Durée recommandée : 60 à 90 minutes.
+
+1. Expliquez comment vous sécuriseriez une application de paiement où il existe trois rôles :
+
+- Client
+- Agent
+- Administrateur
+
+Précisez ce qui doit être contrôlé côté frontend, côté serveur et côté base de données.
+
+2. Un client crée une transaction.
+   Deux agents essaient de prendre la même transaction exactement au même moment.
+
+Expliquez comment vous empêcheriez que les deux agents puissent traiter ou payer la même transaction.
+
+3. Une table "orders" contient notamment :
+
+- id
+- user_id
+- amount
+- status
+- agent_id
+- created_at
+
+Écrivez une requête SQL permettant de récupérer toutes les transactions terminées d’un agent précis, classées de la plus récente à la plus ancienne.
+
+4. Expliquez la différence entre :
+
+- authentification
+- autorisation
+- validation côté serveur
+- RLS / permissions base de données
+
+5. On découvre qu’une clé publique permet de modifier directement le mot de passe ou le niveau KYC d’un autre utilisateur.
+
+Expliquez :
+
+- pourquoi c’est critique ;
+- comment vous corrigeriez cela ;
+- quelles opérations doivent obligatoirement passer par le serveur.
+
+---
+
+Partie 2 — Debugging
+
+Vous avez cette logique :
+
+Un client crée une transaction.
+
+Elle apparaît dans le dashboard admin.
+
+Mais lorsque l’admin clique sur « Traiter », la fiche ne s’ouvre pas.
+
+Aucune erreur visible à l’écran.
+
+Expliquez votre méthode de diagnostic, étape par étape.
+
+Nous voulons voir comment vous réfléchissez avant même de voir le code.
+
+---
+
+Partie 3 — Architecture
+
+TOLOPAY utilise :
+
+- frontend web/mobile ;
+- backend serveur ;
+- PostgreSQL / Supabase ;
+- stockage privé pour les documents KYC ;
+- dashboard admin ;
+- espace agents.
+
+Proposez une architecture simple pour :
+
+1. création d’une transaction ;
+2. attribution à un agent ;
+3. validation du paiement ;
+4. historique ;
+5. KYC ;
+6. stockage sécurisé des documents ;
+7. journal d’audit.
+
+Vous pouvez fournir un petit schéma si nécessaire.
+
+---
+
+Partie 4 — Coding
+
+Créez une petite API ou fonction serveur qui permet à un agent de prendre une transaction.
+
+Conditions :
+
+- l’agent doit être authentifié ;
+- la transaction doit être encore disponible ;
+- deux agents ne doivent jamais pouvoir prendre la même transaction ;
+- "agent_id" doit être enregistré ;
+- la date d’attribution doit être enregistrée ;
+- l’action doit être ajoutée dans un journal d’audit ;
+- une erreur claire doit être renvoyée si la transaction est déjà attribuée.
+
+Vous pouvez utiliser Node.js, Django ou une technologie backend que vous maîtrisez.
+
+---
+
+Partie 5 — IA autorisée
+
+Après avoir terminé les parties précédentes, vous pouvez utiliser une IA.
+
+Améliorez ensuite votre propre solution et indiquez clairement :
+
+- ce que vous avez écrit vous-même ;
+- ce que l’IA vous a suggéré ;
+- ce que vous avez accepté ou rejeté ;
+- pourquoi.
+
+C’est important pour nous : nous cherchons des développeurs capables d’utiliser l’IA comme outil, mais qui comprennent réellement le code qu’ils mettent en production.
