@@ -1,0 +1,108 @@
+TEST TECHNIQUE TOLOPAY
+
+Partie 1 — Sans IA
+1. Sécurisation d'une application de paiement avec trois rôles
+Sur une application de paiement, pour sécuriser trois rôles, je passerai par l'authentification et l'autorisation.
+L'authentification permet à l'utilisateur de se connecter, tandis que l'autorisation lui permet de faire ou de voir ce qui lui est assigné.
+J'utiliserais ces autorisations dans les middlewares ou intercepteurs pour m'assurer que la requête entrante provient bien d'un utilisateur autorisé à accéder à la ressource avant de lui permettre d'y accéder.
+Il peut arriver parfois que, sur une requête, j'accepte deux rôles. Dans ce cas, le contrôle de l'autorisation est fait dans la vue (View).
+Sur le frontend : je contrôle l'affichage de certains éléments selon l'utilisateur connecté. Par exemple, un administrateur peut voir un bouton qu'un agent ou un client ne doit pas voir.
+Sur le backend : je contrôle les autorisations. Bien que le frontend gère l'affichage de certains éléments selon le rôle, je ne lui fais pas confiance. Sur le backend, je vérifie toujours les autorisations avant de laisser passer une opération.
+Sur la base de données : c'est une vérification absolue que l'on met en place avec les RLS (Row Level Security) pour permettre à un utilisateur donné d'accéder, de modifier ou de consulter une donnée. Sur le frontend, la requête peut passer, sur le backend également, mais la base de données peut toujours refuser la requête.
+
+
+2. Deux agents essaient de prendre la même transaction
+Pour une transaction donnée, quand un agent veut interagir avec celle-ci, on la bloque automatiquement.
+C'est-à-dire qu'une transaction donnée n'est accessible qu'à un seul utilisateur à la fois en modification, ce qui garantit que la ressource est protégée.
+
+
+3. Requête SQL
+SELECT *
+FROM orders
+WHERE status = 'COMPLETED'
+AND agent_id = 1
+ORDER BY created_at DESC;
+
+
+4. Différence entre les concepts
+Authentification :
+C'est la façon dont un utilisateur se connecte à une plateforme, généralement par e-mail et mot de passe, mais on peut aussi utiliser l'authentification par Google, Facebook ou Apple.
+Autorisation :
+C'est la capacité d'un utilisateur à accéder à une ressource donnée, généralement lorsqu'il est déjà authentifié.
+Validation côté serveur :
+C'est la capacité à faire des vérifications supplémentaires lorsqu'une personne est authentifiée et autorisée à utiliser la ressource.
+Par exemple, on peut dire que tous les agents peuvent voir les transactions, mais ne peuvent traiter que les transactions qu'ils ont initiées.
+RLS :
+C'est la vérification absolue, car c'est une vérification à la source même des données.
+Une fois configuré, tout peut passer, mais tant que la base de données ne l'autorise pas, cela ne sert à rien.
+Cette vérification est conseillée, car elle est appliquée à la source des données, notamment à la base de données. Elle s'exécute donc dans la base de données selon les règles configurées, avant ou après la récupération de la donnée.
+
+
+5. Une clé publique permet de modifier le mot de passe ou le niveau KYC d'un autre utilisateur
+A — Pourquoi est-ce critique ?
+C'est critique, car cela donne la possibilité à celui qui possède la clé de faire n'importe quoi sur le système au nom d'un autre utilisateur : effectuer des transactions, retirer des fonds, etc.
+B — Comment corriger cela ?
+Utiliser un système de rotation sur les clés publiques, c'est-à-dire donner à une clé publique une durée de validité définie si on veut utiliser ce type d'authentification, ou utiliser l'authentification par JWT avec Refresh Token.
+C — Quelles opérations doivent obligatoirement passer par le serveur ?
+Toutes les opérations doivent passer par le serveur.
+
+
+
+Partie 2 — Debugging
+Problème : la fiche d'une transaction ne s'ouvre pas
+Ma méthode de diagnostic :
+J'ouvre la console du navigateur et je clique sur le bouton « Traiter » pour observer les événements déclenchés ou les requêtes réseau (Network).
+Cela me permet de voir ce qui se passe au moment où l'administrateur clique sur le bouton et d'identifier éventuellement le problème au niveau de la requête.
+
+
+
+Partie 3 — Architecture
+L'architecture que je proposerais est un système de monorepo, avec chaque repo ses dépendances et chaque repo des dossiers de services liés à la manipulation de l'API ou de Supabase, pour ensuite les passer aux Views ou aux fichiers TSX dans le cadre du frontend.
+À noter que, si c'est du PostgreSQL, j'utiliserais les RLS pour contrôler quelles données sont disponibles pour un utilisateur donné.
+
+
+
+Partie 4 — Coding
+Technologie utilisée : Django / Django REST Framework
+from django.db import transaction
+from django.utils import timezone
+from rest_framework.response import Response
+
+
+@authenticated
+@authorized('agent')
+@view_api('/agent/{transaction_uuid}/take')
+def agent_take(request, transaction_uuid):
+    try:
+        with transaction.atomic():
+
+            transaction_obj = Transaction.objects.select_for_update().filter(
+                uuid=transaction_uuid
+            ).first()
+
+            if transaction_obj and transaction_obj.status == 'pending':
+
+                transaction_obj.agent_id = request.user
+                transaction_obj.status = 'processing'
+                transaction_obj.assigned_at = timezone.now()
+
+                transaction_obj.save()
+
+                AuditLog.objects.create(
+                    user=request.user,
+                    action='TRANSACTION_ASSIGNED',
+                    object_id=transaction_obj.id
+                )
+
+                return Response({
+                    'detail': 'Transaction attribuée avec succès'
+                })
+
+            return Response({
+                'detail': 'Transaction déjà attribuée ou indisponible'
+            })
+
+    except Exception as e:
+        return Response({
+            'detail': 'Quelques choses s’est produit'
+        })
